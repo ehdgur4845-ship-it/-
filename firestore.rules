@@ -101,7 +101,8 @@ service cloud.firestore {
 
     match /gallery/{itemId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() && isValidGalleryItem(incoming());
+      allow create: if isSignedIn() && isValidGalleryItem(incoming());
+      allow update, delete: if isAdmin();
     }
 
     match /comments/{commentId} {

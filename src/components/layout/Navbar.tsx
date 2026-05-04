@@ -71,7 +71,7 @@ export default function Navbar() {
               </Link>
             ))}
             
-            {isAdmin && (
+            {user && (
               <Link to="/admin" className="p-2 text-warm-accent hover:bg-warm-accent/10 rounded-full transition-colors">
                 <LayoutDashboard size={20} />
               </Link>
@@ -126,13 +126,13 @@ export default function Navbar() {
               {item.name}
             </Link>
           ))}
-          {isAdmin && (
+          {user && (
             <Link
               to="/admin"
               onClick={() => setIsOpen(false)}
               className="block px-3 py-4 text-base font-medium text-warm-accent border-t border-warm-ink/10"
             >
-              管理者パネル
+              {isAdmin ? '管理者パネル' : 'ダッシュボード'}
             </Link>
           )}
           {user ? (

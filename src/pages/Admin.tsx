@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { db } from '../lib/firebase';
+import { db, storage } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { LayoutDashboard, Mail, Camera, CheckCircle, Clock, Trash2, Plus, Loader2 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { LayoutDashboard, Mail, Camera, CheckCircle, Clock, Trash2, Plus, Loader2, Upload } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
 
 interface Inquiry {
   id: string;
@@ -16,18 +18,25 @@ interface Inquiry {
 }
 
 export default function Admin() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [activeTab, setActiveTab] = useState<'inquiries' | 'upload'>('inquiries');
+  const initialTab = searchParams.get('tab') as 'inquiries' | 'upload';
+  const [activeTab, setActiveTab] = useState<'inquiries' | 'upload'>(
+    isAdmin ? (initialTab || 'inquiries') : (initialTab === 'inquiries' ? 'upload' : (initialTab || 'upload'))
+  );
   const [uploading, setUploading] = useState(false);
 
   // Upload Form State
   const [galleryTitle, setGalleryTitle] = useState('');
-  const [galleryImage, setGalleryImage] = useState('');
+  const [galleryFile, setGalleryFile] = useState<File | null>(null);
   const [galleryDesc, setGalleryDesc] = useState('');
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+        if (activeTab === 'inquiries') setActiveTab('upload');
+        return;
+    }
 
     const q = query(collection(db, 'inquiries'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -39,7 +48,7 @@ export default function Admin() {
     });
 
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, [isAdmin, activeTab]);
 
   const toggleInquiryStatus = async (id: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'pending' ? 'completed' : 'pending';
@@ -54,19 +63,29 @@ export default function Admin() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!galleryTitle || !galleryImage) return;
+    if (!galleryTitle || !galleryFile) {
+        alert('タイトルと画像を選択してください。');
+        return;
+    }
 
     setUploading(true);
     try {
+      // 1. Upload file to Storage
+      const storageRef = ref(storage, `gallery/${Date.now()}_${galleryFile.name}`);
+      const uploadResult = await uploadBytes(storageRef, galleryFile);
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+
+      // 2. Add document to Firestore
       await addDoc(collection(db, 'gallery'), {
         title: galleryTitle,
-        imageUrl: galleryImage,
+        imageUrl: downloadURL,
         description: galleryDesc,
         date: serverTimestamp(),
         isPrivate: true
       });
+
       setGalleryTitle('');
-      setGalleryImage('');
+      setGalleryFile(null);
       setGalleryDesc('');
       alert('ギャラリー画像をアップロードしました。');
     } catch (err) {
@@ -78,7 +97,7 @@ export default function Admin() {
   };
 
   if (authLoading) return <div className="h-[80vh] flex items-center justify-center"><Loader2 className="animate-spin text-warm-accent" size={40} /></div>;
-  if (!isAdmin) return <div className="h-[80vh] flex items-center justify-center text-2xl font-serif italic">管理者権限が必要です。</div>;
+  if (!user) return <div className="h-[80vh] flex items-center justify-center text-2xl font-serif italic">ログインが必要です。</div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-24">
@@ -87,20 +106,22 @@ export default function Admin() {
         <aside className="w-full md:w-64 space-y-2">
             <h1 className="text-2xl font-serif font-bold italic mb-8 px-4 flex items-center gap-3">
                 <LayoutDashboard className="text-warm-accent" />
-                管理者パネル
+                {isAdmin ? '管理者パネル' : 'ダッシュボード'}
             </h1>
-            <button 
-                onClick={() => setActiveTab('inquiries')}
-                className={`w-full text-left px-6 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all ${activeTab === 'inquiries' ? 'bg-warm-accent text-white shadow-lg' : 'hover:bg-warm-accent/5 opacity-60'}`}
-            >
-                <Mail size={18} />
-                お問い合わせ管理
-                {inquiries.filter(i => i.status === 'pending').length > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
-                        {inquiries.filter(i => i.status === 'pending').length}
-                    </span>
-                )}
-            </button>
+            {isAdmin && (
+                <button 
+                    onClick={() => setActiveTab('inquiries')}
+                    className={`w-full text-left px-6 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all ${activeTab === 'inquiries' ? 'bg-warm-accent text-white shadow-lg' : 'hover:bg-warm-accent/5 opacity-60'}`}
+                >
+                    <Mail size={18} />
+                    お問い合わせ管理
+                    {inquiries.filter(i => i.status === 'pending').length > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                            {inquiries.filter(i => i.status === 'pending').length}
+                        </span>
+                    )}
+                </button>
+            )}
             <button 
                 onClick={() => setActiveTab('upload')}
                 className={`w-full text-left px-6 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all ${activeTab === 'upload' ? 'bg-warm-accent text-white shadow-lg' : 'hover:bg-warm-accent/5 opacity-60'}`}
@@ -112,7 +133,7 @@ export default function Admin() {
 
         {/* Content */}
         <main className="flex-1 bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-warm-ink/5 min-h-[60vh]">
-            {activeTab === 'inquiries' ? (
+            {activeTab === 'inquiries' && isAdmin ? (
                 <div>
                     <h2 className="text-2xl font-serif font-bold italic mb-8">相談・お問い合わせ一覧</h2>
                     <div className="space-y-6">
@@ -167,13 +188,28 @@ export default function Admin() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-widest opacity-40">画像URL (Unsplashなど)</label>
-                            <input 
-                                value={galleryImage}
-                                onChange={(e) => setGalleryImage(e.target.value)}
-                                placeholder="https://images.unsplash.com/..."
-                                className="w-full bg-warm-bg/50 border border-warm-ink/10 rounded-2xl p-4 outline-none focus:bg-white focus:border-warm-accent transition-all"
-                            />
+                            <label className="text-xs font-bold uppercase tracking-widest opacity-40">画像アップロード</label>
+                            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-warm-ink/10 rounded-2xl bg-warm-bg/30 cursor-pointer hover:bg-warm-bg/50 transition-all">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <Upload className={`w-8 h-8 mb-3 ${galleryFile ? 'text-green-500' : 'text-warm-ink/20'}`} />
+                                    <p className="mb-2 text-sm text-warm-ink">
+                                        <span className="font-bold">クリックしてアップロード</span> またはドラッグ＆ドロップ
+                                    </p>
+                                    <p className="text-xs text-warm-ink/40">PNG, JPG or GIF (MAX. 5MB)</p>
+                                </div>
+                                <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*"
+                                    onChange={(e) => setGalleryFile(e.target.files ? e.target.files[0] : null)}
+                                />
+                            </label>
+                            {galleryFile && (
+                                <p className="text-sm font-bold text-warm-accent flex items-center gap-2">
+                                    <CheckCircle size={14} />
+                                    選択済み: {galleryFile.name}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-widest opacity-40">詳細説明</label>

@@ -77,11 +77,11 @@ export default function Gallery() {
                 <p className="text-lg text-warm-ink/50 max-w-md italic">
                     "毎日、新しく生まれるご利用者様の貴重な瞬間を記録しています。"
                 </p>
-                {isAdmin && (
-                    <button className="flex items-center space-x-2 px-6 py-3 bg-warm-accent text-white rounded-full font-bold shadow-lg hover:scale-105 transition-all">
+                {user && (
+                    <Link to="/admin?tab=upload" className="flex items-center space-x-2 px-6 py-3 bg-warm-accent text-white rounded-full font-bold shadow-lg hover:scale-105 transition-all">
                         <Plus size={20} />
                         <span>写真をアップロード</span>
-                    </button>
+                    </Link>
                 )}
             </div>
           </div>
