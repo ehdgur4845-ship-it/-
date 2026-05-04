@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "guardian"] },
+        "guardianFor": { "type": "string", "description": "Name of the elder if role is guardian" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Notice": {
+      "title": "Announcement",
+      "description": "Facility announcements and news.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["important", "event", "info"] }
+      },
+      "required": ["title", "content", "date", "category"]
+    },
+    "DailyLog": {
+      "title": "Daily Activity Log",
+      "description": "Information about daily schedules and activities.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "time": { "type": "string", "description": "e.g. 10:00 AM" },
+        "date": { "type": "string", "format": "date" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["title", "time", "date"]
+    },
+    "Meal": {
+      "title": "Meal Info",
+      "description": "Daily menu and nutrition details.",
+      "type": "object",
+      "properties": {
+        "menuName": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "calories": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["menuName", "date"]
+    },
+    "GalleryItem": {
+      "title": "Gallery Content",
+      "description": "Photos of activities for guardians.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "isPrivate": { "type": "boolean", "description": "True if only for registered guardians" }
+      },
+      "required": ["title", "imageUrl", "date"]
+    },
+    "Comment": {
+      "title": "Social Interaction",
+      "description": "Comments from guardians on posts.",
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string", "description": "ID of Notice, DailyLog, or GalleryItem" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetId", "authorId", "content", "timestamp"]
+    },
+    "Inquiry": {
+      "title": "Customer Inquiry",
+      "description": "Inquiries submitted via the contact form.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "grade": { "type": "string", "description": "User care grade" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "contact", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/notices/{noticeId}": { "schema": "Notice", "description": "Announcements" },
+    "/daily_logs/{logId}": { "schema": "DailyLog", "description": "Activity logs" },
+    "/meals/{mealId}": { "schema": "Meal", "description": "Daily meals" },
+    "/gallery/{itemId}": { "schema": "GalleryItem", "description": "Gallery items" },
+    "/comments/{commentId}": { "schema": "Comment", "description": "User comments" },
+    "/inquiries/{inquiryId}": { "schema": "Inquiry", "description": "Contact form submissions" }
+  }
+}
